@@ -63,6 +63,8 @@ Flyway aplica automáticamente las migraciones pendientes durante el inicio.
 
 ## Pruebas
 
+La suite conserva una prueba de contexto aislada con H2 y ejecuta las pruebas reales de persistencia mediante Testcontainers con PostgreSQL 18.6. Docker debe estar disponible; el contenedor efímero se elimina automáticamente al finalizar.
+
 ```bash
 ./mvnw test
 ```
@@ -73,7 +75,11 @@ El backend será un monolito organizado por capas de configuración, controlador
 
 ## Estado actual
 
-El DER está aprobado y la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible. Todavía no existen componentes Java de negocio.
+El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado en la rama `feat/jpa-domain-model`.
+
+El dominio contiene las entidades `User`, `Category`, `Product`, `Cart`, `CartItem`, `Order` y `OrderItem`, junto con sus enumeraciones y auditoría JPA. Los repositorios y la API REST todavía están pendientes.
+
+La futura capa de servicio deberá crear cada pedido completo, con su primer detalle, dentro de una única transacción mediante la fábrica del agregado `Order`.
 
 ## Documentación del modelo de datos
 
