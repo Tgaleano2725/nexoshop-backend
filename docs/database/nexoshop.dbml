@@ -1,0 +1,172 @@
+Project nexoshop {
+  database_type: 'PostgreSQL'
+  Note: 'Modelo documental de NexoShop. Los pagos son simulados y no existe integración financiera real. created_at y updated_at usan DEFAULT CURRENT_TIMESTAMP; el default de updated_at solo actúa durante la inserción. Las actualizaciones posteriores serán administradas por JPA y no se utilizarán triggers.'
+}
+
+Table users {
+  id bigint [pk, increment]
+  first_name varchar(80) [not null]
+  last_name varchar(80) [not null]
+  email varchar(150) [not null]
+  password_hash varchar(255) [not null]
+  role varchar(20) [not null]
+  active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    email [unique, name: 'uk_users_email']
+  }
+
+  checks {
+    `email = lower(email)` [name: 'ck_users_email_lowercase']
+    `role IN ('CUSTOMER', 'ADMIN')` [name: 'ck_users_role']
+  }
+
+  Note: 'El email se almacena en minúsculas. Se prevé un índice único PostgreSQL sobre lower(email) para reforzar la unicidad insensible a mayúsculas. La baja funcional se realiza con active.'
+}
+
+Table categories {
+  id bigint [pk, increment]
+  name varchar(100) [not null]
+  description varchar(500)
+  active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    name [unique, name: 'uk_categories_name']
+  }
+
+  Note: 'Se prevé un índice único PostgreSQL sobre lower(name) para la unicidad insensible a mayúsculas. La baja funcional se realiza con active.'
+}
+
+Table products {
+  id bigint [pk, increment]
+  category_id bigint [not null]
+  sku varchar(50) [not null]
+  name varchar(150) [not null]
+  description text
+  price numeric(12,2) [not null]
+  stock integer [not null]
+  image_url varchar(500)
+  active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    category_id [name: 'ix_products_category_id']
+    sku [unique, name: 'uk_products_sku']
+  }
+
+  checks {
+    `price > 0` [name: 'ck_products_price_positive']
+    `stock >= 0` [name: 'ck_products_stock_nonnegative']
+  }
+
+  Note: 'El stock representa un inventario único y la baja funcional se realiza con active.'
+}
+
+Table carts {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id [unique, name: 'uk_carts_user_id']
+  }
+
+  Note: 'La unicidad de user_id limita a cada usuario a un carrito como máximo.'
+}
+
+Table cart_items {
+  id bigint [pk, increment]
+  cart_id bigint [not null]
+  product_id bigint [not null]
+  quantity integer [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (cart_id, product_id) [unique, name: 'uk_cart_items_cart_product']
+    product_id [name: 'ix_cart_items_product_id']
+  }
+
+  checks {
+    `quantity > 0` [name: 'ck_cart_items_quantity_positive']
+  }
+
+  Note: 'El índice único compuesto también cubre la clave foránea cart_id. Un producto repetido incrementa quantity.'
+}
+
+Table orders {
+  id bigint [pk, increment]
+  order_number varchar(30) [not null]
+  user_id bigint [not null]
+  status varchar(30) [not null]
+  payment_method varchar(30) [not null]
+  payment_status varchar(30) [not null]
+  recipient_name varchar(160) [not null]
+  recipient_phone varchar(30) [not null]
+  shipping_address varchar(255) [not null]
+  shipping_city varchar(100) [not null]
+  shipping_reference varchar(255)
+  subtotal numeric(12,2) [not null]
+  shipping_cost numeric(12,2) [not null, default: 0]
+  total numeric(12,2) [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    order_number [unique, name: 'uk_orders_order_number']
+    user_id [name: 'ix_orders_user_id']
+  }
+
+  checks {
+    `status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'SHIPPED', 'DELIVERED', 'CANCELLED')` [name: 'ck_orders_status']
+    `payment_method IN ('CREDIT_CARD', 'BANK_TRANSFER', 'CASH_ON_DELIVERY')` [name: 'ck_orders_payment_method']
+    `payment_status IN ('PENDING', 'PAID', 'FAILED', 'REFUNDED')` [name: 'ck_orders_payment_status']
+    `subtotal >= 0` [name: 'ck_orders_subtotal_nonnegative']
+    `shipping_cost >= 0` [name: 'ck_orders_shipping_cost_nonnegative']
+    `total >= 0` [name: 'ck_orders_total_nonnegative']
+    `total = subtotal + shipping_cost` [name: 'ck_orders_total_consistent']
+  }
+
+  Note: 'Los datos del destinatario y la dirección son una fotografía histórica. El método y estado de pago son simulados. Los pedidos no se eliminan físicamente.'
+}
+
+Table order_items {
+  id bigint [pk, increment]
+  order_id bigint [not null]
+  product_id bigint [not null]
+  product_sku varchar(50) [not null]
+  product_name varchar(150) [not null]
+  unit_price numeric(12,2) [not null]
+  quantity integer [not null]
+  line_total numeric(12,2) [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    order_id [name: 'ix_order_items_order_id']
+    product_id [name: 'ix_order_items_product_id']
+  }
+
+  checks {
+    `unit_price > 0` [name: 'ck_order_items_unit_price_positive']
+    `quantity > 0` [name: 'ck_order_items_quantity_positive']
+    `line_total > 0` [name: 'ck_order_items_line_total_positive']
+    `line_total = unit_price * quantity` [name: 'ck_order_items_line_total_consistent']
+  }
+
+  Note: 'product_sku, product_name y unit_price son copias históricas intencionales y no se recalculan desde products. Los detalles no se eliminan físicamente.'
+}
+
+Ref fk_products_category: products.category_id > categories.id [delete: restrict, update: no action]
+Ref fk_carts_user: users.id - carts.user_id [delete: restrict, update: no action]
+Ref fk_cart_items_cart: cart_items.cart_id > carts.id [delete: cascade, update: no action]
+Ref fk_cart_items_product: cart_items.product_id > products.id [delete: restrict, update: no action]
+Ref fk_orders_user: orders.user_id > users.id [delete: restrict, update: no action]
+Ref fk_order_items_order: order_items.order_id > orders.id [delete: restrict, update: no action]
+Ref fk_order_items_product: order_items.product_id > products.id [delete: restrict, update: no action]
