@@ -62,6 +62,9 @@ public class OrderServiceImpl implements OrderService {
 			for (CartItem item : cart.getItems()) {
 				Product product = lockedProducts.get(item.getProduct().getId());
 				validateProduct(product, item.getQuantity());
+				if (productRepository.decrementStockIfAvailable(product.getId(), item.getQuantity()) != 1) {
+					throw new BusinessRuleException("Insufficient stock");
+				}
 				product.decreaseStock(item.getQuantity());
 				if (order == null) {
 					order = Order.create(generateOrderNumber(), user, request.paymentMethod(), request.recipientName(),

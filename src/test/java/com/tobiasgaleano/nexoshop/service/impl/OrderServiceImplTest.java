@@ -56,6 +56,7 @@ class OrderServiceImplTest {
 		when(cartRepository.findLockedByUserId(1L)).thenReturn(Optional.of(cart));
 		when(cartRepository.findDetailedById(3L)).thenReturn(Optional.of(cart));
 		when(productRepository.findLockedById(2L)).thenReturn(Optional.of(product));
+		when(productRepository.decrementStockIfAvailable(2L, 2)).thenReturn(1);
 		when(orderRepository.saveAndFlush(any(Order.class))).thenAnswer(inv -> entity(inv.getArgument(0), 9L));
 
 		service.checkout(1L, new CreateOrderRequest(PaymentMethod.CREDIT_CARD, new BigDecimal("2.00"),
