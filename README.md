@@ -77,6 +77,8 @@ La capa de aplicación del catálogo coordina los casos de uso de categorías y 
 
 La capa de aplicación del carrito permite obtener o crear el carrito de un usuario, agregar productos, actualizar cantidades, retirar líneas y vaciarlo. El carrito valida la disponibilidad y el stock actual, pero no reserva ni descuenta inventario; el futuro checkout deberá volver a validar ambos antes de confirmar el pedido.
 
+La capa de pedidos permite convertir el carrito en un pedido dentro de una única transacción: bloquea usuario, carrito y productos en orden estable, toma snapshots históricos, descuenta el inventario y vacía el carrito. La cancelación repone el stock una sola vez; no se implementan pagos externos.
+
 ## Estado actual
 
 El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado.
