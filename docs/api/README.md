@@ -36,3 +36,6 @@ Checkout descuenta el stock dentro de una transacción, vacía el carrito y crea
 - [Referencia de endpoints](endpoints.md)
 - [Contrato de errores](errors.md)
 - [Especificación OpenAPI 3.0.3](openapi.yaml)
+- [Guía de Postman](postman.md)
+- [Colección Postman](../../postman/NexoShop.postman_collection.json)
+- [Entorno local Postman](../../postman/NexoShop.local.postman_environment.json)
