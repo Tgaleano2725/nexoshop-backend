@@ -11,6 +11,8 @@ import jakarta.persistence.LockModeType;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
+	boolean existsByEmailIgnoreCase(String email);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<User> findLockedById(Long id);
 }

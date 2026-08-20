@@ -79,6 +79,10 @@ La capa de aplicación del carrito permite obtener o crear el carrito de un usua
 
 La capa de pedidos permite convertir el carrito en un pedido dentro de una única transacción: bloquea usuario, carrito y productos en orden estable, toma snapshots históricos, descuenta el inventario y vacía el carrito. La cancelación repone el stock una sola vez; no se implementan pagos externos.
 
+La API REST se expone bajo `/api/v1` para usuarios, categorías, productos, carritos y pedidos. El registro usa BCrypt y nunca devuelve contraseñas ni hashes. CORS se configura con `CORS_ALLOWED_ORIGINS` (por defecto `http://localhost:4200`). Esta entrega no incluye autenticación ni autorización de producción.
+
+Para ejecutar localmente, configura las variables de `.env.example` y ejecuta `./mvnw spring-boot:run`; la suite completa se ejecuta con `./mvnw test`.
+
 ## Estado actual
 
 El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado.
