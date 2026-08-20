@@ -1,0 +1,1560 @@
+openapi: 3.0.3
+info:
+  title: NexoShop API
+  version: 1.0.0
+  description: >-
+    Contrato estático de la API REST académica de NexoShop. Describe el backend
+    monolítico implementado para usuarios, catálogo, carritos y pedidos. No
+    incluye autenticación, JWT, autorización ni pagos externos.
+servers:
+  - url: http://localhost:8080
+    description: Servidor local
+tags:
+  - name: Users
+    description: Registro y consulta de usuarios.
+  - name: Categories
+    description: Gestión del catálogo de categorías.
+  - name: Products
+    description: Gestión de productos e inventario.
+  - name: Carts
+    description: Operaciones del carrito de un usuario.
+  - name: Orders
+    description: Checkout, consulta y transiciones de pedidos.
+paths:
+  /api/v1/users:
+    post:
+      tags: [Users]
+      summary: Registrar usuario
+      description: Crea un usuario CUSTOMER activo; la contraseña nunca se devuelve.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUserRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/RegisterUserRequestExample'
+      responses:
+        '201':
+          description: Usuario creado.
+          headers:
+            Location:
+              description: URI del usuario creado.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/UserResponseExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{id}:
+    get:
+      tags: [Users]
+      summary: Consultar usuario
+      description: Devuelve un usuario sin contraseña ni passwordHash.
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Usuario encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/categories:
+    post:
+      tags: [Categories]
+      summary: Crear categoría
+      description: Crea una categoría activa.
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/CategoryRequestExample'
+      responses:
+        '201':
+          description: Categoría creada.
+          headers:
+            Location:
+              description: URI de la categoría creada.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Categories]
+      summary: Listar categorías
+      description: Devuelve categorías ordenadas por nombre e identificador.
+      operationId: listCategories
+      responses:
+        '200':
+          description: Lista de categorías.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/categories/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    put:
+      tags: [Categories]
+      summary: Actualizar categoría
+      description: Actualiza nombre y descripción de una categoría.
+      operationId: updateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Categoría actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Categories]
+      summary: Consultar categoría
+      description: Devuelve una categoría por identificador.
+      operationId: getCategory
+      responses:
+        '200':
+          description: Categoría encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/categories/{id}/activate:
+    post:
+      tags: [Categories]
+      summary: Activar categoría
+      description: Marca la categoría como activa.
+      operationId: activateCategory
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Categoría activada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/categories/{id}/deactivate:
+    post:
+      tags: [Categories]
+      summary: Desactivar categoría
+      description: Marca la categoría como inactiva.
+      operationId: deactivateCategory
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Categoría desactivada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products:
+    post:
+      tags: [Products]
+      summary: Crear producto
+      description: Crea un producto dentro de una categoría activa.
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/ProductRequestExample'
+      responses:
+        '201':
+          description: Producto creado.
+          headers:
+            Location:
+              description: URI del producto creado.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Products]
+      summary: Listar productos
+      description: Devuelve una página estable de productos ordenada por id ascendente.
+      operationId: listProducts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de productos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    put:
+      tags: [Products]
+      summary: Actualizar producto
+      description: Actualiza los datos del producto sin cambiar su stock.
+      operationId: updateProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Producto actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Products]
+      summary: Consultar producto
+      description: Devuelve un producto por identificador.
+      operationId: getProduct
+      responses:
+        '200':
+          description: Producto encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/sku/{sku}:
+    get:
+      tags: [Products]
+      summary: Consultar producto por SKU
+      description: Normaliza el SKU y devuelve el producto coincidente.
+      operationId: getProductBySku
+      parameters:
+        - $ref: '#/components/parameters/Sku'
+      responses:
+        '200':
+          description: Producto encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/{id}/activate:
+    post:
+      tags: [Products]
+      summary: Activar producto
+      description: Activa el producto si su categoría está activa.
+      operationId: activateProduct
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Producto activado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/{id}/deactivate:
+    post:
+      tags: [Products]
+      summary: Desactivar producto
+      description: Desactiva el producto.
+      operationId: deactivateProduct
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Producto desactivado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/{id}/stock/increase:
+    post:
+      tags: [Products]
+      summary: Incrementar stock
+      description: Incrementa el stock con una cantidad positiva.
+      operationId: increaseProductStock
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/StockAdjustmentExample'
+      responses:
+        '200':
+          description: Stock incrementado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/{id}/stock/decrease:
+    post:
+      tags: [Products]
+      summary: Decrementar stock
+      description: Reduce el stock sin permitir valores negativos.
+      operationId: decreaseProductStock
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/StockAdjustmentExample'
+      responses:
+        '200':
+          description: Stock decrementado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/cart:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Carts]
+      summary: Obtener carrito
+      description: Obtiene o crea el carrito del usuario activo.
+      operationId: getCart
+      responses:
+        '200':
+          description: Carrito del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Carts]
+      summary: Vaciar carrito
+      description: Elimina todas las líneas del carrito.
+      operationId: clearCart
+      responses:
+        '200':
+          description: Carrito vacío.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/cart/items:
+    post:
+      tags: [Carts]
+      summary: Agregar artículo al carrito
+      description: Agrega o acumula un producto activo sin reservar stock.
+      operationId: addCartItem
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/AddCartItemExample'
+      responses:
+        '200':
+          description: Carrito actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/cart/items/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/ProductId'
+    put:
+      tags: [Carts]
+      summary: Actualizar cantidad del carrito
+      description: Establece una cantidad positiva que no puede superar el stock actual.
+      operationId: updateCartItemQuantity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemQuantityRequest'
+      responses:
+        '200':
+          description: Carrito actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Carts]
+      summary: Retirar artículo del carrito
+      description: Retira una línea del carrito.
+      operationId: removeCartItem
+      responses:
+        '200':
+          description: Carrito actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/checkout:
+    post:
+      tags: [Orders]
+      summary: Ejecutar checkout
+      description: Descuenta stock, crea un pedido PENDING y vacía el carrito en una transacción.
+      operationId: checkoutOrder
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/CheckoutRequestExample'
+      responses:
+        '200':
+          description: Pedido creado en estado PENDING.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/OrderResponseExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders:
+    get:
+      tags: [Orders]
+      summary: Listar pedidos del usuario
+      description: Devuelve los pedidos del usuario ordenados por id descendente.
+      operationId: listOrders
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de pedidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/OrderId'
+    get:
+      tags: [Orders]
+      summary: Consultar pedido
+      description: Devuelve un pedido perteneciente al usuario.
+      operationId: getOrder
+      responses:
+        '200':
+          description: Pedido encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/OrderResponseExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancelar pedido
+      description: Cancela pedidos PENDING o CONFIRMED y repone el stock una sola vez.
+      operationId: cancelOrder
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido cancelado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/confirm:
+    post:
+      tags: [Orders]
+      summary: Confirmar pedido
+      description: Avanza un pedido PENDING con detalles a CONFIRMED.
+      operationId: confirmOrder
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido confirmado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/preparing:
+    post:
+      tags: [Orders]
+      summary: Pasar pedido a preparación
+      description: Avanza únicamente CONFIRMED a PREPARING.
+      operationId: prepareOrder
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido en preparación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/ship:
+    post:
+      tags: [Orders]
+      summary: Enviar pedido
+      description: Avanza únicamente PREPARING a SHIPPED.
+      operationId: shipOrder
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido enviado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/deliver:
+    post:
+      tags: [Orders]
+      summary: Entregar pedido
+      description: Avanza únicamente SHIPPED a DELIVERED.
+      operationId: deliverOrder
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido entregado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/payment/paid:
+    post:
+      tags: [Orders]
+      summary: Marcar pago como pagado
+      description: Avanza el pago desde PENDING o FAILED a PAID.
+      operationId: markPaymentPaid
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pago marcado como PAID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/payment/failed:
+    post:
+      tags: [Orders]
+      summary: Marcar pago como fallido
+      description: Avanza el pago únicamente desde PENDING a FAILED.
+      operationId: markPaymentFailed
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pago marcado como FAILED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/users/{userId}/orders/{orderId}/payment/refund:
+    post:
+      tags: [Orders]
+      summary: Reembolsar pago
+      description: Avanza el pago únicamente desde PAID a REFUNDED.
+      operationId: refundPayment
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pago marcado como REFUNDED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/BusinessRule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Identificador positivo de 64 bits.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: Identificador positivo del usuario.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      description: Identificador positivo del producto.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      description: Identificador positivo del pedido.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    Sku:
+      name: sku
+      in: path
+      required: true
+      description: SKU textual del producto.
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Página basada en cero.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      description: Cantidad positiva de elementos por página.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 20
+  responses:
+    BadRequest:
+      description: Solicitud inválida; puede ser VALIDATION_ERROR o MALFORMED_REQUEST.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation:
+              $ref: '#/components/examples/ValidationErrorExample'
+            malformed:
+              $ref: '#/components/examples/MalformedErrorExample'
+    NotFound:
+      description: Recurso inexistente (RESOURCE_NOT_FOUND).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            default:
+              $ref: '#/components/examples/NotFoundErrorExample'
+    Conflict:
+      description: Conflicto de duplicidad, regla de negocio o integridad (409).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            duplicate:
+              $ref: '#/components/examples/DuplicateErrorExample'
+            business:
+              $ref: '#/components/examples/BusinessErrorExample'
+    BusinessRule:
+      description: Regla de negocio no permitida (BUSINESS_RULE).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            default:
+              $ref: '#/components/examples/BusinessErrorExample'
+    InternalError:
+      description: Error inesperado sin detalles internos (INTERNAL_ERROR).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            default:
+              $ref: '#/components/examples/InternalErrorExample'
+  schemas:
+    RegisterUserRequest:
+      type: object
+      required: [firstName, lastName, email, password]
+      properties:
+        firstName:
+          type: string
+          maxLength: 80
+          minLength: 1
+        lastName:
+          type: string
+          maxLength: 80
+          minLength: 1
+        email:
+          type: string
+          format: email
+          maxLength: 150
+          minLength: 1
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          writeOnly: true
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+    UpdateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+    CreateProductRequest:
+      type: object
+      required: [categoryId, sku, name, price, stock]
+      properties:
+        categoryId:
+          type: integer
+          format: int64
+          minimum: 1
+        sku:
+          type: string
+          maxLength: 50
+          minLength: 1
+        name:
+          type: string
+          maxLength: 150
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/PositiveMoney'
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+        imageUrl:
+          type: string
+          maxLength: 500
+          nullable: true
+    UpdateProductRequest:
+      type: object
+      required: [categoryId, sku, name, price]
+      properties:
+        categoryId:
+          type: integer
+          format: int64
+          minimum: 1
+        sku:
+          type: string
+          maxLength: 50
+          minLength: 1
+        name:
+          type: string
+          maxLength: 150
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/PositiveMoney'
+        imageUrl:
+          type: string
+          maxLength: 500
+          nullable: true
+    StockAdjustmentRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+    AddCartItemRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+          format: int64
+          minimum: 1
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+    UpdateCartItemQuantityRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+    CreateOrderRequest:
+      type: object
+      required: [paymentMethod, shippingCost, recipientName, recipientPhone, shippingAddress, shippingCity]
+      properties:
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        shippingCost:
+          $ref: '#/components/schemas/NonNegativeMoney'
+        recipientName:
+          type: string
+          maxLength: 160
+          minLength: 1
+        recipientPhone:
+          type: string
+          maxLength: 30
+          minLength: 1
+        shippingAddress:
+          type: string
+          maxLength: 255
+          minLength: 1
+        shippingCity:
+          type: string
+          maxLength: 100
+          minLength: 1
+        shippingReference:
+          type: string
+          maxLength: 255
+          nullable: true
+    UserResponse:
+      type: object
+      required: [id, firstName, lastName, email, role, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CategoryResponse:
+      type: object
+      required: [id, name, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProductResponse:
+      type: object
+      required: [id, categoryId, categoryName, sku, name, price, stock, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        sku:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/PositiveMoney'
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+        imageUrl:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CartItemResponse:
+      type: object
+      required: [productId, sku, name, unitPrice, quantity, lineTotal, availableStock]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        sku:
+          type: string
+        name:
+          type: string
+        unitPrice:
+          $ref: '#/components/schemas/PositiveMoney'
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        lineTotal:
+          $ref: '#/components/schemas/NonNegativeMoney'
+        availableStock:
+          type: integer
+          format: int32
+          minimum: 0
+    CartResponse:
+      type: object
+      required: [cartId, userId, items, lineCount, totalUnits, subtotal, createdAt, updatedAt]
+      properties:
+        cartId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItemResponse'
+        lineCount:
+          type: integer
+          format: int32
+          minimum: 0
+        totalUnits:
+          type: integer
+          format: int32
+          minimum: 0
+        subtotal:
+          $ref: '#/components/schemas/NonNegativeMoney'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrderItemResponse:
+      type: object
+      required: [productId, productSku, productName, unitPrice, quantity, lineTotal]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        productSku:
+          type: string
+        productName:
+          type: string
+        unitPrice:
+          $ref: '#/components/schemas/PositiveMoney'
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        lineTotal:
+          $ref: '#/components/schemas/NonNegativeMoney'
+    OrderResponse:
+      type: object
+      required: [orderId, orderNumber, userId, status, paymentMethod, paymentStatus, recipientName, recipientPhone, shippingAddress, shippingCity, items, subtotal, shippingCost, total, createdAt, updatedAt]
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        orderNumber:
+          type: string
+        userId:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        paymentStatus:
+          $ref: '#/components/schemas/PaymentStatus'
+        recipientName:
+          type: string
+        recipientPhone:
+          type: string
+        shippingAddress:
+          type: string
+        shippingCity:
+          type: string
+        shippingReference:
+          type: string
+          nullable: true
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItemResponse'
+        subtotal:
+          $ref: '#/components/schemas/NonNegativeMoney'
+        shippingCost:
+          $ref: '#/components/schemas/NonNegativeMoney'
+        total:
+          $ref: '#/components/schemas/NonNegativeMoney'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProductPageResponse:
+      type: object
+      required: [content, page, size, totalElements, totalPages, first, last]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        first:
+          type: boolean
+        last:
+          type: boolean
+    OrderPageResponse:
+      type: object
+      required: [content, page, size, totalElements, totalPages, first, last]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderResponse'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        first:
+          type: boolean
+        last:
+          type: boolean
+    FieldErrorResponse:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [timestamp, status, code, message, path, fieldErrors]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, MALFORMED_REQUEST, RESOURCE_NOT_FOUND, DUPLICATE_RESOURCE, BUSINESS_RULE, INTEGRITY_VIOLATION, INTERNAL_ERROR]
+        message:
+          type: string
+        path:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldErrorResponse'
+    PositiveMoney:
+      type: number
+      format: double
+      minimum: 0
+      exclusiveMinimum: true
+      maximum: 9999999999.99
+      multipleOf: 0.01
+      example: 49.90
+    NonNegativeMoney:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 9999999999.99
+      multipleOf: 0.01
+      example: 5.00
+    UserRole:
+      type: string
+      enum: [CUSTOMER, ADMIN]
+    OrderStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, PREPARING, SHIPPED, DELIVERED, CANCELLED]
+    PaymentMethod:
+      type: string
+      enum: [CREDIT_CARD, BANK_TRANSFER, CASH_ON_DELIVERY]
+    PaymentStatus:
+      type: string
+      enum: [PENDING, PAID, FAILED, REFUNDED]
+  examples:
+    RegisterUserRequestExample:
+      summary: Registro ficticio
+      value:
+        firstName: Ada
+        lastName: Lovelace
+        email: ada@example.test
+        password: DemoPass!42
+    CategoryRequestExample:
+      summary: Categoría ficticia
+      value:
+        name: Libros
+        description: Lecturas de ejemplo
+    ProductRequestExample:
+      summary: Producto ficticio
+      value:
+        categoryId: 2
+        sku: BOOK-DEMO-01
+        name: Libro de ejemplo
+        description: Producto ficticio para documentación
+        price: 49.90
+        stock: 12
+        imageUrl: https://example.test/book.jpg
+    StockAdjustmentExample:
+      summary: Ajuste de stock ficticio
+      value:
+        quantity: 3
+    AddCartItemExample:
+      summary: Artículo ficticio
+      value:
+        productId: 3
+        quantity: 2
+    CheckoutRequestExample:
+      summary: Checkout ficticio
+      value:
+        paymentMethod: CASH_ON_DELIVERY
+        shippingCost: 5.00
+        recipientName: Ada Lovelace
+        recipientPhone: '+595 21 555000'
+        shippingAddress: Calle Demo 123
+        shippingCity: Asunción
+        shippingReference: Edificio de ejemplo
+    UserResponseExample:
+      summary: Usuario ficticio
+      value:
+        id: 2
+        firstName: Ada
+        lastName: Lovelace
+        email: ada@example.test
+        role: CUSTOMER
+        active: true
+        createdAt: '2026-08-20T05:27:46Z'
+        updatedAt: '2026-08-20T05:27:46Z'
+    OrderResponseExample:
+      summary: Pedido ficticio PENDING
+      value:
+        orderId: 4
+        orderNumber: NXDEMO0000000000000000000001
+        userId: 2
+        status: PENDING
+        paymentMethod: CASH_ON_DELIVERY
+        paymentStatus: PENDING
+        recipientName: Ada Lovelace
+        recipientPhone: '+595 21 555000'
+        shippingAddress: Calle Demo 123
+        shippingCity: Asunción
+        shippingReference: Edificio de ejemplo
+        items:
+          - productId: 3
+            productSku: BOOK-DEMO-01
+            productName: Libro de ejemplo
+            unitPrice: 49.90
+            quantity: 2
+            lineTotal: 99.80
+        subtotal: 99.80
+        shippingCost: 5.00
+        total: 104.80
+        createdAt: '2026-08-20T05:27:46Z'
+        updatedAt: '2026-08-20T05:27:46Z'
+    ValidationErrorExample:
+      summary: Error de validación
+      value:
+        timestamp: '2026-08-20T05:27:46Z'
+        status: 400
+        code: VALIDATION_ERROR
+        message: Request validation failed
+        path: /api/v1/products
+        fieldErrors:
+          - field: price
+            message: must be greater than 0.00
+    MalformedErrorExample:
+      summary: Parámetro inválido
+      value:
+        timestamp: '2026-08-20T05:27:46Z'
+        status: 400
+        code: MALFORMED_REQUEST
+        message: Request parameter has an invalid format
+        path: /api/v1/categories/abc
+        fieldErrors: []
+    NotFoundErrorExample:
+      summary: Recurso inexistente
+      value:
+        timestamp: '2026-08-20T05:27:46Z'
+        status: 404
+        code: RESOURCE_NOT_FOUND
+        message: 'Product not found: 3'
+        path: /api/v1/products/3
+        fieldErrors: []
+    DuplicateErrorExample:
+      summary: Recurso duplicado
+      value:
+        timestamp: '2026-08-20T05:27:46Z'
+        status: 409
+        code: DUPLICATE_RESOURCE
+        message: Email already exists
+        path: /api/v1/users
+        fieldErrors: []
+    BusinessErrorExample:
+      summary: Regla de negocio
+      value:
+        timestamp: '2026-08-20T05:27:46Z'
+        status: 409
+        code: BUSINESS_RULE
+        message: Insufficient stock
+        path: /api/v1/users/2/orders/checkout
+        fieldErrors: []
+    InternalErrorExample:
+      summary: Error interno
+      value:
+        timestamp: '2026-08-20T05:27:46Z'
+        status: 500
+        code: INTERNAL_ERROR
+        message: An unexpected error occurred
+        path: /api/v1/products
+        fieldErrors: []
