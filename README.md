@@ -104,6 +104,7 @@ docker compose stop postgres
 - [Guía de Postman](docs/api/postman.md)
 - [Colección Postman](postman/NexoShop.postman_collection.json)
 - [Entorno local Postman](postman/NexoShop.local.postman_environment.json)
+- [Informe final de validación](docs/final-validation-report.md)
 - [Diagrama de entidad-relación](docs/database/der.md)
 - [Diccionario de datos](docs/database/data-dictionary.md)
 - [Modelo DBML](docs/database/nexoshop.dbml)

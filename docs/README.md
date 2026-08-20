@@ -13,6 +13,7 @@ Este directorio reúne la documentación oficial del backend. Cada documento tie
 | [Errores de API](api/errors.md) | Formato y códigos de error HTTP. | `GlobalExceptionHandler` y `ErrorResponse`. |
 | [OpenAPI](api/openapi.yaml) | Contrato importable OpenAPI 3.0.3. | Rutas y schemas del código actual. |
 | [Postman](api/postman.md) | Guía de importación y ejecución controlada. | Colección y entorno local. |
+| [Informe final de validación](final-validation-report.md) | Evidencia automatizada, manual y de limpieza técnica. | Suite Maven, ejecución Postman y verificaciones finales. |
 | [DER](database/der.md) | Modelo conceptual y relaciones. | Modelo relacional aprobado y V1. |
 | [Diccionario de datos](database/data-dictionary.md) | Columnas, tipos, restricciones e índices. | `V1__create_initial_schema.sql`. |
 | [DBML](database/nexoshop.dbml) | Representación DBML del esquema. | V1 y diccionario de datos. |

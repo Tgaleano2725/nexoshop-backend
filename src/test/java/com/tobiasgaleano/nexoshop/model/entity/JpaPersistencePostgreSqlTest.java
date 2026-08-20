@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.function.Function;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
@@ -284,13 +286,13 @@ class JpaPersistencePostgreSqlTest {
 	}
 
 	@Test
-	void catalogServicesPersistAuditAndReturnStablePagesTransactionally() throws InterruptedException {
+	void catalogServicesPersistAuditAndReturnStablePagesTransactionally() {
 		var category = categoryService.create(new CreateCategoryRequest("Electronics", null));
 		var first = productService.create(productRequest(category.id(), "SKU-1", "Keyboard"));
 		var second = productService.create(productRequest(category.id(), "SKU-2", "Mouse"));
 		var third = productService.create(productRequest(category.id(), "SKU-3", "Monitor"));
 
-		Thread.sleep(5);
+		awaitClockAdvancePast(first.updatedAt());
 		var updated = productService.update(first.id(), new UpdateProductRequest(category.id(), first.sku(),
 				"Mechanical keyboard", null, first.price(), null));
 		productService.deactivate(third.id());
@@ -491,6 +493,16 @@ class JpaPersistencePostgreSqlTest {
 			return outcome.get();
 		} catch (Exception exception) {
 			throw new AssertionError("Concurrent stock operation did not complete", exception);
+		}
+	}
+
+	private static void awaitClockAdvancePast(Instant instant) {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+		while (!Instant.now().isAfter(instant)) {
+			if (System.nanoTime() >= deadline) {
+				throw new AssertionError("System clock did not advance before the audit timestamp check");
+			}
+			Thread.onSpinWait();
 		}
 	}
 

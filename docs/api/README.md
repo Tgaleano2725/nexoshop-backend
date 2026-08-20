@@ -39,3 +39,4 @@ Checkout descuenta el stock dentro de una transacción, vacía el carrito y crea
 - [Guía de Postman](postman.md)
 - [Colección Postman](../../postman/NexoShop.postman_collection.json)
 - [Entorno local Postman](../../postman/NexoShop.local.postman_environment.json)
+- [Informe final de validación](../final-validation-report.md)
