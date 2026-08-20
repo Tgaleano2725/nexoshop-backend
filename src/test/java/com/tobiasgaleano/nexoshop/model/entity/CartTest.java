@@ -3,6 +3,8 @@ package com.tobiasgaleano.nexoshop.model.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
+
 import org.junit.jupiter.api.Test;
 
 class CartTest {
@@ -59,6 +61,47 @@ class CartTest {
 				.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> cart.getItems().clear())
 				.isInstanceOf(UnsupportedOperationException.class);
+	}
+
+	@Test
+	void clearsItemsAndSynchronizesBothSides() {
+		Cart cart = new Cart(user());
+		CartItem first = cart.addProduct(product(), 1);
+		CartItem second = cart.addProduct(TestData.product("SKU-2", new BigDecimal("10.00")), 2);
+
+		cart.clear();
+
+		assertThat(cart.getItems()).isEmpty();
+		assertThat(first.getCart()).isNull();
+		assertThat(second.getCart()).isNull();
+	}
+
+	@Test
+	void calculatesCurrentPriceLineTotalsUnitsAndExactSubtotal() {
+		Cart cart = new Cart(user());
+		Product first = product();
+		Product second = TestData.product("SKU-2", new BigDecimal("0.10"));
+		cart.addProduct(first, 2);
+		cart.addProduct(second, 3);
+
+		assertThat(cart.quantityOf(first)).isEqualTo(2);
+		assertThat(cart.getTotalUnits()).isEqualTo(5);
+		assertThat(cart.calculateSubtotal()).isEqualTo(new BigDecimal("51.30"));
+
+		first.changePrice(new BigDecimal("30.00"));
+		assertThat(cart.calculateSubtotal()).isEqualTo(new BigDecimal("60.30"));
+	}
+
+	@Test
+	void rejectsMonetaryAndUnitOverflow() {
+		Cart monetaryOverflow = new Cart(user());
+		monetaryOverflow.addProduct(TestData.product("SKU-MAX", new BigDecimal("9999999999.99")), 2);
+		assertThatThrownBy(monetaryOverflow::calculateSubtotal).isInstanceOf(IllegalArgumentException.class);
+
+		Cart unitOverflow = new Cart(user());
+		unitOverflow.addProduct(product(), Integer.MAX_VALUE);
+		unitOverflow.addProduct(TestData.product("SKU-2", BigDecimal.ONE), 1);
+		assertThatThrownBy(unitOverflow::getTotalUnits).isInstanceOf(ArithmeticException.class);
 	}
 
 	private static User user() {

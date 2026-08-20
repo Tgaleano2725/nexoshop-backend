@@ -1,6 +1,9 @@
 package com.tobiasgaleano.nexoshop.model.entity;
 
+import java.math.BigDecimal;
 import java.util.Objects;
+
+import com.tobiasgaleano.nexoshop.validation.MonetaryAmount;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -72,6 +75,10 @@ public class CartItem extends BaseEntity {
 
 	public int getQuantity() {
 		return quantity;
+	}
+
+	public BigDecimal calculateLineTotal() {
+		return MonetaryAmount.multiplyPositive(product.getPrice(), quantity, "Cart line total");
 	}
 
 	private static void requirePositiveQuantity(int quantity) {

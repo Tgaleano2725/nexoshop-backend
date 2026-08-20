@@ -29,13 +29,19 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import com.tobiasgaleano.nexoshop.model.enums.PaymentMethod;
 import com.tobiasgaleano.nexoshop.dto.request.category.CreateCategoryRequest;
+import com.tobiasgaleano.nexoshop.dto.request.cart.AddCartItemRequest;
+import com.tobiasgaleano.nexoshop.dto.request.cart.UpdateCartItemQuantityRequest;
+import com.tobiasgaleano.nexoshop.dto.response.cart.CartResponse;
 import com.tobiasgaleano.nexoshop.dto.request.product.CreateProductRequest;
 import com.tobiasgaleano.nexoshop.dto.request.product.StockAdjustmentRequest;
 import com.tobiasgaleano.nexoshop.dto.request.product.UpdateProductRequest;
 import com.tobiasgaleano.nexoshop.exception.BusinessRuleException;
 import com.tobiasgaleano.nexoshop.exception.DuplicateResourceException;
 import com.tobiasgaleano.nexoshop.repository.CategoryRepository;
+import com.tobiasgaleano.nexoshop.repository.CartRepository;
 import com.tobiasgaleano.nexoshop.repository.ProductRepository;
+import com.tobiasgaleano.nexoshop.repository.UserRepository;
+import com.tobiasgaleano.nexoshop.service.CartService;
 import com.tobiasgaleano.nexoshop.service.CategoryService;
 import com.tobiasgaleano.nexoshop.service.ProductService;
 
@@ -64,11 +70,15 @@ class JpaPersistencePostgreSqlTest {
 	private final ProductRepository productRepository;
 	private final CategoryService categoryService;
 	private final ProductService productService;
+	private final UserRepository userRepository;
+	private final CartRepository cartRepository;
+	private final CartService cartService;
 
 	@Autowired
 	JpaPersistencePostgreSqlTest(EntityManagerFactory entityManagerFactory, DataSource dataSource,
 			Environment environment, CategoryRepository categoryRepository, ProductRepository productRepository,
-			CategoryService categoryService, ProductService productService) {
+			CategoryService categoryService, ProductService productService, UserRepository userRepository,
+			CartRepository cartRepository, CartService cartService) {
 		this.entityManagerFactory = entityManagerFactory;
 		this.jdbcTemplate = new JdbcTemplate(dataSource);
 		this.environment = environment;
@@ -76,6 +86,9 @@ class JpaPersistencePostgreSqlTest {
 		this.productRepository = productRepository;
 		this.categoryService = categoryService;
 		this.productService = productService;
+		this.userRepository = userRepository;
+		this.cartRepository = cartRepository;
+		this.cartService = cartService;
 	}
 
 	@DynamicPropertySource
@@ -340,6 +353,127 @@ class JpaPersistencePostgreSqlTest {
 		}
 
 		assertThat(productService.getById(product.id()).stock()).isEqualTo(3);
+	}
+
+	@Test
+	void cartServiceCreatesOneAuditedCartAndReturnsAFullyInitializedResponse() {
+		User user = userRepository.saveAndFlush(TestData.user("cart-service@example.com"));
+
+		CartResponse created = cartService.getOrCreate(user.getId());
+		CartResponse repeated = cartService.getOrCreate(user.getId());
+		CartResponse read = cartService.getByUserId(user.getId());
+
+		assertThat(repeated.cartId()).isEqualTo(created.cartId());
+		assertThat(read.cartId()).isEqualTo(created.cartId());
+		assertThat(read.userId()).isEqualTo(created.userId());
+		assertThat(read.items()).isEqualTo(created.items());
+		assertThat(read.subtotal()).isEqualByComparingTo(created.subtotal());
+		assertThat(created.createdAt()).isNotNull();
+		assertThat(created.updatedAt()).isNotNull();
+		assertThat(created.items()).isEmpty();
+		assertThat(jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM carts WHERE user_id = ?", Integer.class, user.getId())).isEqualTo(1);
+	}
+
+	@Test
+	void cartServiceAggregatesTheSameProductUsingCurrentPriceWithoutChangingStock() {
+		User user = userRepository.saveAndFlush(TestData.user("cart-product@example.com"));
+		Category category = categoryRepository.saveAndFlush(new Category("Cart products", null));
+		Product product = productRepository.saveAndFlush(new Product(category, "SKU-CART-SERVICE", "Keyboard", null,
+				new BigDecimal("25.50"), 10, null));
+
+		cartService.addProduct(user.getId(), new AddCartItemRequest(product.getId(), 1));
+		CartResponse response = cartService.addProduct(user.getId(), new AddCartItemRequest(product.getId(), 2));
+
+		assertThat(response.items()).singleElement().satisfies(item -> {
+			assertThat(item.quantity()).isEqualTo(3);
+			assertThat(item.lineTotal()).isEqualByComparingTo("76.50");
+		});
+		assertThat(response.subtotal()).isEqualByComparingTo("76.50");
+		assertThat(response.totalUnits()).isEqualTo(3);
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cart_items", Integer.class)).isEqualTo(1);
+		assertThat(jdbcTemplate.queryForObject(
+				"SELECT stock FROM products WHERE id = ?", Integer.class, product.getId())).isEqualTo(10);
+	}
+
+	@Test
+	void cartServiceRollsBackInvalidQuantityAndOrphanRemovalDeletesRemovedAndClearedItems() {
+		User user = userRepository.saveAndFlush(TestData.user("cart-orphans@example.com"));
+		Category category = categoryRepository.saveAndFlush(new Category("Cart orphans", null));
+		Product first = productRepository.saveAndFlush(new Product(category, "SKU-ORPHAN-1", "First", null,
+				new BigDecimal("10.00"), 3, null));
+		Product second = productRepository.saveAndFlush(new Product(category, "SKU-ORPHAN-2", "Second", null,
+				new BigDecimal("5.00"), 3, null));
+
+		cartService.addProduct(user.getId(), new AddCartItemRequest(first.getId(), 2));
+		cartService.addProduct(user.getId(), new AddCartItemRequest(second.getId(), 1));
+		Throwable rejected = catchThrowable(() -> cartService.setProductQuantity(user.getId(), first.getId(),
+				new UpdateCartItemQuantityRequest(4)));
+
+		assertThat(rejected).isInstanceOf(BusinessRuleException.class);
+		assertThat(cartService.getByUserId(user.getId()).items())
+				.filteredOn(item -> item.productId().equals(first.getId()))
+				.singleElement().extracting(item -> item.quantity()).isEqualTo(2);
+		assertThat(jdbcTemplate.queryForObject(
+				"SELECT stock FROM products WHERE id = ?", Integer.class, first.getId())).isEqualTo(3);
+
+		cartService.removeProduct(user.getId(), first.getId());
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cart_items", Integer.class)).isEqualTo(1);
+		cartService.clear(user.getId());
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cart_items", Integer.class)).isZero();
+	}
+
+	@Test
+	void concurrentFirstCartCreationProducesExactlyOneCart() throws Exception {
+		User user = userRepository.saveAndFlush(TestData.user("cart-race@example.com"));
+		CountDownLatch start = new CountDownLatch(1);
+
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+			List<Future<CartResponse>> outcomes = List.of(
+					executor.submit(() -> getOrCreateAfterSignal(start, user.getId())),
+					executor.submit(() -> getOrCreateAfterSignal(start, user.getId())));
+			start.countDown();
+
+			assertThat(outcomes.get(0).get().cartId()).isEqualTo(outcomes.get(1).get().cartId());
+		}
+
+		assertThat(cartRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void concurrentAddsOfTheSameProductDoNotLoseUpdatesOrChangeInventory() throws Exception {
+		User user = userRepository.saveAndFlush(TestData.user("cart-add-race@example.com"));
+		Category category = categoryRepository.saveAndFlush(new Category("Cart race products", null));
+		Product product = productRepository.saveAndFlush(new Product(category, "SKU-ADD-RACE", "Keyboard", null,
+				new BigDecimal("12.50"), 10, null));
+		cartService.getOrCreate(user.getId());
+		CountDownLatch start = new CountDownLatch(1);
+
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+			List<Future<CartResponse>> outcomes = List.of(
+					executor.submit(() -> addAfterSignal(start, user.getId(), product.getId(), 2)),
+					executor.submit(() -> addAfterSignal(start, user.getId(), product.getId(), 3)));
+			start.countDown();
+			assertThat(outcomes).allSatisfy(outcome -> assertThat(outcome.get()).isNotNull());
+		}
+
+		CartResponse response = cartService.getByUserId(user.getId());
+		assertThat(response.items()).singleElement().extracting(item -> item.quantity()).isEqualTo(5);
+		assertThat(response.subtotal()).isEqualByComparingTo("62.50");
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cart_items", Integer.class)).isEqualTo(1);
+		assertThat(jdbcTemplate.queryForObject(
+				"SELECT stock FROM products WHERE id = ?", Integer.class, product.getId())).isEqualTo(10);
+	}
+
+	private CartResponse getOrCreateAfterSignal(CountDownLatch start, Long userId) throws Exception {
+		start.await();
+		return cartService.getOrCreate(userId);
+	}
+
+	private CartResponse addAfterSignal(CountDownLatch start, Long userId, Long productId, int quantity)
+			throws Exception {
+		start.await();
+		return cartService.addProduct(userId, new AddCartItemRequest(productId, quantity));
 	}
 
 	private Throwable decreaseStockAfterSignal(CountDownLatch start, Long productId) {

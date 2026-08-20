@@ -1,8 +1,11 @@
 package com.tobiasgaleano.nexoshop.model.entity;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import com.tobiasgaleano.nexoshop.validation.MonetaryAmount;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -57,6 +60,31 @@ public class Cart extends BaseEntity {
 		CartItem item = requireItem(product);
 		items.remove(item);
 		item.detachFromCart();
+	}
+
+	public void clear() {
+		items.forEach(CartItem::detachFromCart);
+		items.clear();
+	}
+
+	public int quantityOf(Product product) {
+		Product requiredProduct = requireNonNull(product, "Product");
+		CartItem item = findItem(requiredProduct);
+		return item == null ? 0 : item.getQuantity();
+	}
+
+	public int getTotalUnits() {
+		return items.stream()
+				.mapToInt(CartItem::getQuantity)
+				.reduce(0, Math::addExact);
+	}
+
+	public BigDecimal calculateSubtotal() {
+		BigDecimal subtotal = BigDecimal.ZERO;
+		for (CartItem item : items) {
+			subtotal = MonetaryAmount.addNonNegative(subtotal, item.calculateLineTotal(), "Cart subtotal");
+		}
+		return MonetaryAmount.requireNonNegative(subtotal, "Cart subtotal");
 	}
 
 	public User getUser() {

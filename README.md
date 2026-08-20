@@ -75,11 +75,13 @@ El backend es un monolito organizado por capas de configuración, DTO de entrada
 
 La capa de aplicación del catálogo coordina los casos de uso de categorías y productos. Sus servicios transaccionales aplican reglas de negocio y traducen errores de persistencia, los repositorios encapsulan Spring Data JPA, los mapeadores manuales evitan exponer entidades y `PageResponse` mantiene la paginación desacoplada de Spring Data para la futura API.
 
+La capa de aplicación del carrito permite obtener o crear el carrito de un usuario, agregar productos, actualizar cantidades, retirar líneas y vaciarlo. El carrito valida la disponibilidad y el stock actual, pero no reserva ni descuenta inventario; el futuro checkout deberá volver a validar ambos antes de confirmar el pedido.
+
 ## Estado actual
 
 El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado.
 
-El dominio contiene las entidades `User`, `Category`, `Product`, `Cart`, `CartItem`, `Order` y `OrderItem`, junto con sus enumeraciones y auditoría JPA. El catálogo dispone de repositorios, DTO, mapeadores y servicios para categorías y productos; la API REST todavía está pendiente.
+El dominio contiene las entidades `User`, `Category`, `Product`, `Cart`, `CartItem`, `Order` y `OrderItem`, junto con sus enumeraciones y auditoría JPA. El catálogo y el carrito disponen de repositorios, DTO, mapeadores y servicios; la API REST todavía está pendiente.
 
 La futura capa de servicio deberá crear cada pedido completo, con su primer detalle, dentro de una única transacción mediante la fábrica del agregado `Order`.
 
