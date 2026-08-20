@@ -1,6 +1,8 @@
 package com.tobiasgaleano.nexoshop.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -22,17 +24,24 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.tobiasgaleano.nexoshop.config.WebConfig;
 import com.tobiasgaleano.nexoshop.dto.response.PageResponse;
+import com.tobiasgaleano.nexoshop.dto.response.cart.CartResponse;
 import com.tobiasgaleano.nexoshop.dto.response.category.CategoryResponse;
+import com.tobiasgaleano.nexoshop.dto.response.order.OrderResponse;
 import com.tobiasgaleano.nexoshop.dto.response.product.ProductResponse;
 import com.tobiasgaleano.nexoshop.dto.response.user.UserResponse;
 import com.tobiasgaleano.nexoshop.exception.DuplicateResourceException;
 import com.tobiasgaleano.nexoshop.exception.ResourceNotFoundException;
+import com.tobiasgaleano.nexoshop.model.enums.OrderStatus;
+import com.tobiasgaleano.nexoshop.model.enums.PaymentMethod;
+import com.tobiasgaleano.nexoshop.model.enums.PaymentStatus;
 import com.tobiasgaleano.nexoshop.model.enums.UserRole;
 import com.tobiasgaleano.nexoshop.service.CartService;
 import com.tobiasgaleano.nexoshop.service.CategoryService;
 import com.tobiasgaleano.nexoshop.service.OrderService;
 import com.tobiasgaleano.nexoshop.service.ProductService;
 import com.tobiasgaleano.nexoshop.service.UserService;
+
+import java.math.BigDecimal;
 
 @SpringBootTest(properties = {"spring.profiles.active=test"})
 class ApiMvcTest {
@@ -58,6 +67,13 @@ class ApiMvcTest {
 				.andExpect(jsonPath("$.path").value("/api/v1/users"));
 		mvc.perform(post("/api/v1/users").contentType("application/json").content("{\"firstName\":\"\",\"lastName\":\"x\",\"email\":\"x\",\"password\":\"short\"}"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+		mvc.perform(get("/api/v1/categories/abc")).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+		mvc.perform(get("/api/v1/products?page=abc")).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+		mvc.perform(post("/api/v1/users/1/orders/checkout").contentType("application/json")
+				.content("{\"paymentMethod\":\"NOT_A_PAYMENT_METHOD\",\"shippingCost\":\"0.00\",\"recipientName\":\"Tobias\",\"recipientPhone\":\"1\",\"shippingAddress\":\"A\",\"shippingCity\":\"C\"}"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
 	}
 
 	@Test void mapsNotFoundAndDuplicateToContractCodes() throws Exception {
@@ -77,5 +93,39 @@ class ApiMvcTest {
 				.andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:4200"));
 		mvc.perform(options("/api/v1/categories").header("Origin", "http://evil.example").header("Access-Control-Request-Method", "GET"))
 				.andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+	}
+
+	@Test void delegatesCartAddAndReturnsCartContract() throws Exception {
+		CartResponse response = new CartResponse(12L, 5L, List.of(), 0, 0, BigDecimal.ZERO, Instant.now(), Instant.now());
+		when(carts.addProduct(eq(5L), any())).thenReturn(response);
+
+		mvc.perform(post("/api/v1/users/5/cart/items").contentType("application/json")
+				.content("{\"productId\":3,\"quantity\":2}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.cartId").value(12))
+				.andExpect(jsonPath("$.userId").value(5)).andExpect(jsonPath("$.items").isArray());
+		verify(carts).addProduct(eq(5L), any());
+	}
+
+	@Test void delegatesCheckoutAndConfirmationUsingOrderContract() throws Exception {
+		OrderResponse response = orderResponse();
+		when(orders.checkout(eq(5L), any())).thenReturn(response);
+		when(orders.confirm(5L, 88L)).thenReturn(response);
+
+		mvc.perform(post("/api/v1/users/5/orders/checkout").contentType("application/json")
+				.content("{\"paymentMethod\":\"CREDIT_CARD\",\"shippingCost\":\"0.00\",\"recipientName\":\"Tobias\",\"recipientPhone\":\"1\",\"shippingAddress\":\"A\",\"shippingCity\":\"C\"}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.orderId").value(88))
+				.andExpect(jsonPath("$.status").value("PENDING"));
+		verify(orders).checkout(eq(5L), any());
+
+		mvc.perform(post("/api/v1/users/5/orders/88/confirm"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDING"));
+		verify(orders).confirm(5L, 88L);
+	}
+
+	private static OrderResponse orderResponse() {
+		Instant now = Instant.now();
+		return new OrderResponse(88L, "NX-88", 5L, OrderStatus.PENDING, PaymentMethod.CREDIT_CARD,
+				PaymentStatus.PENDING, "Tobias", "1", "A", "C", null, List.of(), BigDecimal.ZERO,
+				BigDecimal.ZERO, BigDecimal.ZERO, now, now);
 	}
 }
