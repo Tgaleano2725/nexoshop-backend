@@ -133,4 +133,4 @@ Detalle histórico de los productos incluidos en un pedido.
 | `orders` | UK `order_number`; índice `user_id` | Identificar pedidos y consultar el historial de un usuario. |
 | `order_items` | índice `order_id`; índice `product_id` | Optimizar ambas relaciones históricas. |
 
-Como endurecimiento futuro específico de PostgreSQL, la unicidad de usuarios y categorías será insensible a mayúsculas mediante índices únicos de expresión sobre `lower(email)` y `lower(name)`, respectivamente. Estos índices sustituirán o complementarán las restricciones ordinarias según se defina en la futura migración, sin cambiar el modelo conceptual.
+V1 aplica la unicidad insensible a mayúsculas de usuarios y categorías mediante índices únicos de expresión sobre `lower(email)` y `lower(name)`, respectivamente. Estos índices complementan las restricciones ordinarias sin cambiar el modelo conceptual.

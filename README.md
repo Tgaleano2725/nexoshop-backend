@@ -1,56 +1,74 @@
 # NexoShop
 
-Backend REST académico para un sistema de comercio electrónico, orientado a demostrar principios de programación orientada a objetos.
+Backend REST académico de comercio electrónico, desarrollado para aplicar programación orientada a objetos, arquitectura por capas, persistencia relacional y construcción de una API REST.
+
+- Autor: Tobias González Galeano
+- Estado: backend funcional y validado dentro del alcance académico
+- API base: `http://localhost:8080/api/v1`
+
+## Alcance funcional
+
+El backend implementa:
+
+- registro y consulta de usuarios;
+- categorías y productos;
+- inventario con operaciones de stock;
+- carritos por usuario;
+- checkout transaccional;
+- pedidos y transiciones logísticas;
+- estados de pago simulados;
+- manejo uniforme de errores;
+- control de concurrencia para evitar sobreventa.
+
+El checkout crea el pedido en estado `PENDING`; la confirmación es una transición posterior.
+
+## Fuera de alcance
+
+Esta entrega no incluye autenticación, JWT, autorización, pasarela de pago externa, frontend Angular ni despliegue productivo. El frontend se mantiene separado del backend y los pagos son únicamente simulados.
 
 ## Stack tecnológico
 
 - Java 25
 - Spring Boot 4.1.0
 - Maven Wrapper
-- Spring Web MVC, Spring Data JPA y Validation
-- PostgreSQL y Flyway
-- JUnit, Spring Boot Starter Test y H2 solamente para pruebas iniciales aisladas
+- Spring Web MVC, Spring Data JPA y Hibernate
+- PostgreSQL 18.6
+- Flyway
+- Docker Compose
+- JUnit, MockMvc y Testcontainers
+- H2 únicamente para pruebas aisladas de contexto
 
-## Requisitos locales
+## Arquitectura
 
-- JDK 25 con `JAVA_HOME` configurado
-- Docker Engine y Docker Compose
+NexoShop es un monolito organizado por capas. El flujo principal es:
 
-## PostgreSQL local
+`Controller → Service → Repository → PostgreSQL`
 
-La infraestructura utiliza PostgreSQL 18.6 mediante la imagen oficial `postgres:18.6-bookworm`.
+Los DTO representan los contratos HTTP y los mappers convierten entre DTO y entidades, evitando exponer entidades JPA directamente desde los controladores. Flyway es la autoridad del esquema y Hibernate utiliza `ddl-auto=validate`.
 
-Crear la configuración local y reemplazar la contraseña de ejemplo por una contraseña segura:
+Consulta el detalle en [la arquitectura](docs/architecture.md) y [el dominio y sus reglas](docs/domain-and-business-rules.md).
+
+## Requisitos y ejecución local
+
+Requisitos:
+
+- JDK 25 con `JAVA_HOME` configurado;
+- Docker Engine y Docker Compose.
+
+Crea la configuración local a partir del ejemplo y reemplaza el valor de contraseña de ejemplo por uno seguro, sin versionar `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Iniciar PostgreSQL:
+Inicia PostgreSQL y comprueba su healthcheck:
 
 ```bash
 docker compose up -d postgres
-```
-
-Comprobar el estado y el healthcheck:
-
-```bash
 docker compose ps postgres
 ```
 
-Detener PostgreSQL sin eliminar el volumen persistente:
-
-```bash
-docker compose stop postgres
-```
-
-> **Operación destructiva:** el siguiente comando elimina los contenedores y el volumen con todos los datos locales de PostgreSQL.
-
-```bash
-docker compose down -v
-```
-
-Para iniciar Spring Boot, cargar primero las variables en la terminal actual y ejecutar el proyecto con Maven Wrapper:
+Para iniciar la API, carga las variables en la terminal actual y ejecuta el Maven Wrapper:
 
 ```bash
 set -a
@@ -59,40 +77,31 @@ set +a
 ./mvnw spring-boot:run
 ```
 
-Flyway aplica automáticamente las migraciones pendientes durante el inicio.
+La aplicación queda disponible en `http://localhost:8080/api/v1`. CORS permite por defecto `http://localhost:4200` y puede configurarse con `CORS_ALLOWED_ORIGINS`.
 
-## Pruebas
-
-La suite conserva una prueba de contexto aislada con H2 y ejecuta las pruebas reales de persistencia mediante Testcontainers con PostgreSQL 18.6. Docker debe estar disponible; el contenedor efímero se elimina automáticamente al finalizar.
+Ejecuta la suite con:
 
 ```bash
 ./mvnw test
 ```
 
-## Arquitectura
+Para detener PostgreSQL conservando el volumen persistente:
 
-El backend es un monolito organizado por capas de configuración, DTO de entrada y salida, excepciones, mapeadores, entidades y enumeraciones del modelo, repositorios, servicios y validaciones. Los controladores se incorporarán en una fase posterior.
+```bash
+docker compose stop postgres
+```
 
-La capa de aplicación del catálogo coordina los casos de uso de categorías y productos. Sus servicios transaccionales aplican reglas de negocio y traducen errores de persistencia, los repositorios encapsulan Spring Data JPA, los mapeadores manuales evitan exponer entidades y `PageResponse` mantiene la paginación desacoplada de Spring Data para la futura API.
+> **Advertencia:** `docker compose down -v` elimina el volumen `postgres_data` y todos los datos locales de PostgreSQL. Úsalo únicamente si deseas perder esos datos.
 
-La capa de aplicación del carrito permite obtener o crear el carrito de un usuario, agregar productos, actualizar cantidades, retirar líneas y vaciarlo. El carrito valida la disponibilidad y el stock actual, pero no reserva ni descuenta inventario; el futuro checkout deberá volver a validar ambos antes de confirmar el pedido.
+## Documentación
 
-La capa de pedidos permite convertir el carrito en un pedido dentro de una única transacción: bloquea usuario, carrito y productos en orden estable, toma snapshots históricos, descuenta el inventario y vacía el carrito. La cancelación repone el stock una sola vez; no se implementan pagos externos.
-
-La API REST se expone bajo `/api/v1` para usuarios, categorías, productos, carritos y pedidos. El registro usa BCrypt y nunca devuelve contraseñas ni hashes. CORS se configura con `CORS_ALLOWED_ORIGINS` (por defecto `http://localhost:4200`). Esta entrega no incluye autenticación ni autorización de producción.
-
-Para ejecutar localmente, configura las variables de `.env.example` y ejecuta `./mvnw spring-boot:run`; la suite completa se ejecuta con `./mvnw test`.
-
-## Estado actual
-
-El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado.
-
-El dominio contiene las entidades `User`, `Category`, `Product`, `Cart`, `CartItem`, `Order` y `OrderItem`, junto con sus enumeraciones y auditoría JPA. El catálogo y el carrito disponen de repositorios, DTO, mapeadores y servicios; la API REST todavía está pendiente.
-
-La futura capa de servicio deberá crear cada pedido completo, con su primer detalle, dentro de una única transacción mediante la fábrica del agregado `Order`.
-
-## Documentación del modelo de datos
-
-- [Diagrama de Entidad-Relación](docs/database/der.md)
+- [Índice documental](docs/README.md)
+- [Arquitectura](docs/architecture.md)
+- [Dominio y reglas de negocio](docs/domain-and-business-rules.md)
+- [Diagrama de entidad-relación](docs/database/der.md)
 - [Diccionario de datos](docs/database/data-dictionary.md)
 - [Modelo DBML](docs/database/nexoshop.dbml)
+
+## Pruebas y validación
+
+El último checkpoint validado contiene 107 pruebas satisfactorias, con cobertura unitaria, MVC y persistencia real mediante PostgreSQL/Testcontainers. Flyway aplica únicamente V1 y Hibernate valida el esquema existente mediante `ddl-auto=validate`; `open-in-view` permanece deshabilitado.

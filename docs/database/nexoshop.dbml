@@ -23,7 +23,7 @@ Table users {
     `role IN ('CUSTOMER', 'ADMIN')` [name: 'ck_users_role']
   }
 
-  Note: 'El email se almacena en minúsculas. Se prevé un índice único PostgreSQL sobre lower(email) para reforzar la unicidad insensible a mayúsculas. La baja funcional se realiza con active.'
+  Note: 'El email se almacena en minúsculas. V1 aplica un índice único PostgreSQL sobre lower(email) para reforzar la unicidad insensible a mayúsculas. La baja funcional se realiza con active.'
 }
 
 Table categories {
@@ -38,7 +38,7 @@ Table categories {
     name [unique, name: 'uk_categories_name']
   }
 
-  Note: 'Se prevé un índice único PostgreSQL sobre lower(name) para la unicidad insensible a mayúsculas. La baja funcional se realiza con active.'
+  Note: 'V1 aplica un índice único PostgreSQL sobre lower(name) para la unicidad insensible a mayúsculas. La baja funcional se realiza con active.'
 }
 
 Table products {

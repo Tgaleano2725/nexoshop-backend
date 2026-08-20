@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Este documento define el modelo relacional aprobado para la primera versión de NexoShop. Su objetivo es servir como contrato de diseño antes de crear entidades JPA o migraciones Flyway.
+Este documento define el modelo relacional aprobado para la primera versión de NexoShop. Sirve como referencia conceptual del esquema implementado por las entidades JPA y la migración inicial de Flyway.
 
 ## Alcance
 
@@ -129,8 +129,8 @@ La existencia de al menos un `order_items` por pedido debe validarse en la trans
 - Todos los identificadores son `BIGINT`, claves primarias e identidades generadas por PostgreSQL.
 - Todos los campos son obligatorios salvo `categories.description`, `products.description`, `products.image_url` y `orders.shipping_reference`.
 - `users.email`, `categories.name`, `products.sku`, `carts.user_id` y `orders.order_number` son únicos.
-- `users.email` se almacena normalizado en minúsculas. Además de la unicidad ordinaria, se prevé reforzar la unicidad insensible a mayúsculas con un índice único PostgreSQL basado en `lower(email)`.
-- Para `categories.name` se prevé un índice único PostgreSQL basado en `lower(name)`, evitando nombres equivalentes que solo difieran en mayúsculas.
+- `users.email` se almacena normalizado en minúsculas. Además de la unicidad ordinaria, V1 aplica un índice único PostgreSQL basado en `lower(email)`.
+- `categories.name` utiliza en V1 un índice único PostgreSQL basado en `lower(name)`, evitando nombres equivalentes que solo difieran en mayúsculas.
 - `cart_items(cart_id, product_id)` es único: agregar nuevamente el mismo producto incrementa `quantity` y no crea otra fila.
 - Todas las claves foráneas cuentan con un índice. Las restricciones únicas de `carts.user_id` y `cart_items(cart_id, product_id)` ya proporcionan un índice cuyo prefijo cubre `user_id` y `cart_id`; `cart_items.product_id` requiere otro índice.
 - `products.price` y `order_items.unit_price` deben ser mayores que cero. Los subtotales, costos de envío y totales deben ser mayores o iguales que cero.
@@ -159,8 +159,8 @@ El modelo se mantiene en tercera forma normal: cada tabla representa un concepto
 
 `order_items` aplica una desnormalización controlada: duplica SKU, nombre y precio unitario para preservar la compra tal como ocurrió aunque el catálogo cambie. Por la misma razón, la dirección de entrega se almacena directamente en `orders` como fotografía histórica y no como referencia a una dirección mutable.
 
-Una futura clase abstracta `BaseEntity` podrá centralizar en Java `id`, `createdAt` y `updatedAt`, presentes en las siete tablas. Los valores `NUMERIC` se representarán con `BigDecimal` para conservar precisión decimal.
+La clase abstracta `BaseEntity` centraliza en Java `id`, `createdAt` y `updatedAt`, presentes en las siete tablas. Las entidades JPA usan `BigDecimal` para representar los valores `NUMERIC` y conservar precisión decimal.
 
 ## Exclusiones de alcance
 
-No se crean tablas separadas para roles, pagos, direcciones, promociones, reseñas ni inventarios múltiples. Los métodos de pago son simulados y no existe integración real con bancos, procesadores de tarjetas u otras entidades financieras. Tampoco forman parte de esta fase autenticación, autorización, datos de ejemplo, código Java ni migraciones SQL.
+No se crean tablas separadas para roles, pagos, direcciones, promociones, reseñas ni inventarios múltiples. Los métodos de pago son simulados y no existe integración real con bancos, procesadores de tarjetas u otras entidades financieras. El DER no contiene código Java ni migraciones SQL; esos artefactos implementan el modelo documentado aquí.
