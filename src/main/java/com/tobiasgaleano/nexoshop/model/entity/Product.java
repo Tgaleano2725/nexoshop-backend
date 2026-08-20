@@ -79,6 +79,14 @@ public class Product extends BaseEntity {
 		this.imageUrl = normalizeOptional(imageUrl, 500, "Image URL");
 	}
 
+	public void changeCategory(Category category) {
+		this.category = requireNonNull(category, "Category");
+	}
+
+	public void changeSku(String sku) {
+		this.sku = requireText(sku, "SKU", 50);
+	}
+
 	public void changePrice(BigDecimal price) {
 		this.price = MonetaryAmount.requirePositive(price, "Price");
 	}

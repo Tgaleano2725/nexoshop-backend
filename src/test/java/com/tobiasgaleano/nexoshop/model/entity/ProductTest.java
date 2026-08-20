@@ -63,6 +63,20 @@ class ProductTest {
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void changesCategoryAndSkuThroughExplicitDomainOperations() {
+		Product product = product();
+		Category category = new Category("Accessories", null);
+
+		product.changeCategory(category);
+		product.changeSku(" SKU-2 ");
+
+		assertThat(product.getCategory()).isSameAs(category);
+		assertThat(product.getSku()).isEqualTo("SKU-2");
+		assertThatThrownBy(() -> product.changeCategory(null)).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> product.changeSku(" ")).isInstanceOf(IllegalArgumentException.class);
+	}
+
 	private static Product product() {
 		return TestData.product();
 	}

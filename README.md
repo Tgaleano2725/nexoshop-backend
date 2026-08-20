@@ -69,15 +69,17 @@ La suite conserva una prueba de contexto aislada con H2 y ejecuta las pruebas re
 ./mvnw test
 ```
 
-## Arquitectura prevista
+## Arquitectura
 
-El backend será un monolito organizado por capas de configuración, controladores, DTO de entrada y salida, excepciones, mapeadores, entidades y enumeraciones del modelo, repositorios, servicios y validaciones.
+El backend es un monolito organizado por capas de configuración, DTO de entrada y salida, excepciones, mapeadores, entidades y enumeraciones del modelo, repositorios, servicios y validaciones. Los controladores se incorporarán en una fase posterior.
+
+La capa de aplicación del catálogo coordina los casos de uso de categorías y productos. Sus servicios transaccionales aplican reglas de negocio y traducen errores de persistencia, los repositorios encapsulan Spring Data JPA, los mapeadores manuales evitan exponer entidades y `PageResponse` mantiene la paginación desacoplada de Spring Data para la futura API.
 
 ## Estado actual
 
-El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado en la rama `feat/jpa-domain-model`.
+El DER está aprobado, la infraestructura local PostgreSQL con la migración inicial de Flyway está disponible y el modelo JPA está implementado.
 
-El dominio contiene las entidades `User`, `Category`, `Product`, `Cart`, `CartItem`, `Order` y `OrderItem`, junto con sus enumeraciones y auditoría JPA. Los repositorios y la API REST todavía están pendientes.
+El dominio contiene las entidades `User`, `Category`, `Product`, `Cart`, `CartItem`, `Order` y `OrderItem`, junto con sus enumeraciones y auditoría JPA. El catálogo dispone de repositorios, DTO, mapeadores y servicios para categorías y productos; la API REST todavía está pendiente.
 
 La futura capa de servicio deberá crear cada pedido completo, con su primer detalle, dentro de una única transacción mediante la fábrica del agregado `Order`.
 

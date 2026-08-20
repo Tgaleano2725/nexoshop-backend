@@ -6,6 +6,10 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.function.Function;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.sql.DataSource;
 
@@ -16,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -23,6 +28,16 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import com.tobiasgaleano.nexoshop.model.enums.PaymentMethod;
+import com.tobiasgaleano.nexoshop.dto.request.category.CreateCategoryRequest;
+import com.tobiasgaleano.nexoshop.dto.request.product.CreateProductRequest;
+import com.tobiasgaleano.nexoshop.dto.request.product.StockAdjustmentRequest;
+import com.tobiasgaleano.nexoshop.dto.request.product.UpdateProductRequest;
+import com.tobiasgaleano.nexoshop.exception.BusinessRuleException;
+import com.tobiasgaleano.nexoshop.exception.DuplicateResourceException;
+import com.tobiasgaleano.nexoshop.repository.CategoryRepository;
+import com.tobiasgaleano.nexoshop.repository.ProductRepository;
+import com.tobiasgaleano.nexoshop.service.CategoryService;
+import com.tobiasgaleano.nexoshop.service.ProductService;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -45,13 +60,22 @@ class JpaPersistencePostgreSqlTest {
 	private final EntityManagerFactory entityManagerFactory;
 	private final JdbcTemplate jdbcTemplate;
 	private final Environment environment;
+	private final CategoryRepository categoryRepository;
+	private final ProductRepository productRepository;
+	private final CategoryService categoryService;
+	private final ProductService productService;
 
 	@Autowired
 	JpaPersistencePostgreSqlTest(EntityManagerFactory entityManagerFactory, DataSource dataSource,
-			Environment environment) {
+			Environment environment, CategoryRepository categoryRepository, ProductRepository productRepository,
+			CategoryService categoryService, ProductService productService) {
 		this.entityManagerFactory = entityManagerFactory;
 		this.jdbcTemplate = new JdbcTemplate(dataSource);
 		this.environment = environment;
+		this.categoryRepository = categoryRepository;
+		this.productRepository = productRepository;
+		this.categoryService = categoryService;
+		this.productService = productService;
 	}
 
 	@DynamicPropertySource
@@ -214,6 +238,130 @@ class JpaPersistencePostgreSqlTest {
 				"SELECT COUNT(*) FROM orders WHERE id = ?", Integer.class, orderId)).isEqualTo(1);
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM order_items WHERE order_id = ?", Integer.class, orderId)).isEqualTo(1);
+	}
+
+	@Test
+	void categoryRepositoryFindsNamesIgnoringCaseAndPostgreSqlEnforcesRealUniqueness() {
+		Category persisted = categoryRepository.saveAndFlush(new Category("Electronics", null));
+
+		assertThat(categoryRepository.findByNameIgnoreCase("eLeCtRoNiCs"))
+				.hasValueSatisfying(found -> assertThat(found.getId()).isEqualTo(persisted.getId()));
+		assertThat(catchThrowable(() -> categoryRepository.saveAndFlush(new Category("ELECTRONICS", null))))
+				.isInstanceOf(RuntimeException.class);
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM categories", Integer.class)).isEqualTo(1);
+	}
+
+	@Test
+	void productRepositoryPersistsCategoryAndPostgreSqlEnforcesSkuUniqueness() {
+		Category category = categoryRepository.saveAndFlush(new Category("Electronics", null));
+		Product product = productRepository.saveAndFlush(new Product(category, "SKU-1", "Keyboard", null,
+				new BigDecimal("25.50"), 10, null));
+
+		assertThat(productRepository.findBySku("SKU-1"))
+				.hasValueSatisfying(found -> assertThat(found.getId()).isEqualTo(product.getId()));
+		assertThat(productRepository.findById(product.getId()))
+				.get()
+				.extracting(Product::getCategory)
+				.extracting(Category::getId)
+				.isEqualTo(category.getId());
+		assertThat(catchThrowable(() -> productRepository.saveAndFlush(new Product(category, "SKU-1", "Mouse", null,
+				new BigDecimal("10.00"), 1, null))))
+				.isInstanceOf(RuntimeException.class);
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM products", Integer.class)).isEqualTo(1);
+	}
+
+	@Test
+	void catalogServicesPersistAuditAndReturnStablePagesTransactionally() throws InterruptedException {
+		var category = categoryService.create(new CreateCategoryRequest("Electronics", null));
+		var first = productService.create(productRequest(category.id(), "SKU-1", "Keyboard"));
+		var second = productService.create(productRequest(category.id(), "SKU-2", "Mouse"));
+		var third = productService.create(productRequest(category.id(), "SKU-3", "Monitor"));
+
+		Thread.sleep(5);
+		var updated = productService.update(first.id(), new UpdateProductRequest(category.id(), first.sku(),
+				"Mechanical keyboard", null, first.price(), null));
+		productService.deactivate(third.id());
+
+		var firstPage = productService.getAll(PageRequest.of(0, 2));
+		var secondPage = productService.getAll(PageRequest.of(1, 2));
+		var activePage = productService.getActive(PageRequest.of(0, 10));
+
+		assertThat(first.createdAt()).isNotNull();
+		assertThat(first.updatedAt()).isNotNull();
+		assertThat(updated.updatedAt()).isAfter(first.updatedAt());
+		assertThat(firstPage.content()).extracting(response -> response.id())
+				.containsExactly(first.id(), second.id());
+		assertThat(secondPage.content()).extracting(response -> response.id()).containsExactly(third.id());
+		assertThat(activePage.content()).extracting(response -> response.id())
+				.containsExactly(first.id(), second.id());
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM products", Integer.class)).isEqualTo(3);
+	}
+
+	@Test
+	void serviceRollsBackPartialUpdateAndReportsDuplicateWithoutLeakingSql() {
+		var category = categoryService.create(new CreateCategoryRequest("Electronics", null));
+		var original = productService.create(productRequest(category.id(), "SKU-1", "Keyboard"));
+
+		Throwable invalidUpdate = catchThrowable(() -> productService.update(original.id(),
+				new UpdateProductRequest(category.id(), "SKU-CHANGED", "Changed",
+						null, new BigDecimal("1.001"), null)));
+
+		assertThat(invalidUpdate).isInstanceOf(BusinessRuleException.class);
+		assertThat(productRepository.findBySku("SKU-1")).isPresent();
+		assertThat(productRepository.findBySku("SKU-CHANGED")).isEmpty();
+		assertThat(productService.getById(original.id()).name()).isEqualTo("Keyboard");
+
+		Throwable duplicate = catchThrowable(() -> productService.create(
+				productRequest(category.id(), "SKU-1", "Another product")));
+		assertThat(duplicate)
+				.isInstanceOf(DuplicateResourceException.class)
+				.hasMessage("A product with that SKU already exists");
+		assertThat(duplicate.getMessage()).doesNotContain("INSERT", "constraint", "SQL");
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM products", Integer.class)).isEqualTo(1);
+	}
+
+	@Test
+	void concurrentStockDecreasesAreSerializedAndCannotOversell() throws Exception {
+		var category = categoryService.create(new CreateCategoryRequest("Electronics", null));
+		var product = productService.create(productRequest(category.id(), "SKU-STOCK", "Keyboard"));
+		CountDownLatch start = new CountDownLatch(1);
+
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+			List<Future<Throwable>> outcomes = List.of(
+					executor.submit(() -> decreaseStockAfterSignal(start, product.id())),
+					executor.submit(() -> decreaseStockAfterSignal(start, product.id())));
+			start.countDown();
+
+			assertThat(outcomes)
+					.extracting(this::awaitOutcome)
+					.satisfiesExactlyInAnyOrder(
+							outcome -> assertThat(outcome).isNull(),
+							outcome -> assertThat(outcome).isInstanceOf(BusinessRuleException.class));
+		}
+
+		assertThat(productService.getById(product.id()).stock()).isEqualTo(3);
+	}
+
+	private Throwable decreaseStockAfterSignal(CountDownLatch start, Long productId) {
+		try {
+			start.await();
+			productService.decreaseStock(productId, new StockAdjustmentRequest(7));
+			return null;
+		} catch (Throwable throwable) {
+			return throwable;
+		}
+	}
+
+	private Throwable awaitOutcome(Future<Throwable> outcome) {
+		try {
+			return outcome.get();
+		} catch (Exception exception) {
+			throw new AssertionError("Concurrent stock operation did not complete", exception);
+		}
+	}
+
+	private static CreateProductRequest productRequest(Long categoryId, String sku, String name) {
+		return new CreateProductRequest(categoryId, sku, name, null, new BigDecimal("25.50"), 10, null);
 	}
 
 	private Catalog persistCatalog(EntityManager entityManager, String email, String sku, BigDecimal price) {
