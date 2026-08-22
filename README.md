@@ -112,4 +112,4 @@ docker compose stop postgres
 
 ## Pruebas y validación
 
-El último checkpoint validado contiene 107 pruebas satisfactorias, con cobertura unitaria, MVC y persistencia real mediante PostgreSQL/Testcontainers. Flyway aplica únicamente V1 y Hibernate valida el esquema existente mediante `ddl-auto=validate`; `open-in-view` permanece deshabilitado.
+La suite automatizada actual contiene 110 pruebas satisfactorias, con cobertura unitaria, MVC y persistencia real mediante PostgreSQL/Testcontainers. El informe final de validación conserva el checkpoint anterior del 20 de agosto de 2026, compuesto por 107 pruebas y la validación manual de Postman. Flyway aplica únicamente V1 y Hibernate valida el esquema existente mediante `ddl-auto=validate`; `open-in-view` permanece deshabilitado.
