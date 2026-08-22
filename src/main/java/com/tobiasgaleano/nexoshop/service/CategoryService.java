@@ -16,6 +16,8 @@ public interface CategoryService {
 
 	List<CategoryResponse> getAll();
 
+	List<CategoryResponse> getActive();
+
 	CategoryResponse activate(Long id);
 
 	CategoryResponse deactivate(Long id);

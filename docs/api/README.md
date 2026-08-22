@@ -15,6 +15,7 @@ NexoShop expone una API REST académica para gestionar usuarios, catálogo, carr
 - **Cantidades y stock:** enteros positivos en las operaciones de cantidad; el stock persistido es un entero no negativo.
 - **Timestamps:** instantes ISO-8601 UTC, por ejemplo `2026-08-20T05:27:46Z`.
 - **Paginación:** `page` comienza en `0` y por defecto es `0`; `size` es positivo y por defecto es `20`. Las respuestas incluyen `content`, `page`, `size`, `totalElements`, `totalPages`, `first` y `last`.
+- **Catálogo público:** los listados de categorías y productos aceptan `activeOnly`; ausente o `false` conserva el listado completo y `true` devuelve únicamente recursos activos.
 - **Errores:** todos utilizan el objeto [`ErrorResponse`](errors.md).
 - **CORS:** se aplica a `/api/**`; por defecto permite `http://localhost:4200` y puede configurarse con `CORS_ALLOWED_ORIGINS`. No se habilitan credenciales.
 

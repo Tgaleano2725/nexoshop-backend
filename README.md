@@ -12,6 +12,7 @@ El backend implementa:
 
 - registro y consulta de usuarios;
 - categorías y productos;
+- listados públicos filtrables mediante `activeOnly=true`;
 - inventario con operaciones de stock;
 - carritos por usuario;
 - checkout transaccional;

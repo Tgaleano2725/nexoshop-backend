@@ -2,6 +2,7 @@ package com.tobiasgaleano.nexoshop.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -93,6 +94,33 @@ class ApiMvcTest {
 				.andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:4200"));
 		mvc.perform(options("/api/v1/categories").header("Origin", "http://evil.example").header("Access-Control-Request-Method", "GET"))
 				.andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+	}
+
+	@Test void selectsPublicCatalogListingsOnlyWhenActiveOnlyIsTrue() throws Exception {
+		CategoryResponse activeCategory = new CategoryResponse(1L, "Books", null, true, Instant.now(), Instant.now());
+		CategoryResponse inactiveCategory = new CategoryResponse(2L, "Legacy", null, false, Instant.now(), Instant.now());
+		when(categories.getAll()).thenReturn(List.of(activeCategory, inactiveCategory));
+		when(categories.getActive()).thenReturn(List.of(activeCategory));
+
+		ProductResponse activeProduct = new ProductResponse(1L, 1L, "Books", "ACTIVE-1", "Active", null,
+				BigDecimal.TEN, 3, null, true, Instant.now(), Instant.now());
+		ProductResponse inactiveProduct = new ProductResponse(2L, 1L, "Books", "INACTIVE-1", "Inactive", null,
+				BigDecimal.TEN, 3, null, false, Instant.now(), Instant.now());
+		when(products.getAll(any())).thenReturn(new PageResponse<>(List.of(activeProduct, inactiveProduct), 0, 20, 2, 1, true, true));
+		when(products.getActive(any())).thenReturn(new PageResponse<>(List.of(activeProduct), 0, 20, 1, 1, true, true));
+
+		mvc.perform(get("/api/v1/categories")).andExpect(status().isOk()).andExpect(jsonPath("$[1].active").value(false));
+		mvc.perform(get("/api/v1/categories?activeOnly=false")).andExpect(status().isOk()).andExpect(jsonPath("$[1].active").value(false));
+		mvc.perform(get("/api/v1/categories?activeOnly=true")).andExpect(status().isOk()).andExpect(jsonPath("$[0].active").value(true)).andExpect(jsonPath("$[1]").doesNotExist());
+
+		mvc.perform(get("/api/v1/products?page=0&size=20")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+		mvc.perform(get("/api/v1/products?activeOnly=false&page=0&size=20")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+		mvc.perform(get("/api/v1/products?activeOnly=true&page=0&size=20")).andExpect(status().isOk()).andExpect(jsonPath("$.content[0].sku").value("ACTIVE-1")).andExpect(jsonPath("$.content[1]").doesNotExist()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.totalPages").value(1));
+
+		verify(categories, times(2)).getAll();
+		verify(categories).getActive();
+		verify(products, times(2)).getAll(any());
+		verify(products).getActive(any());
 	}
 
 	@Test void delegatesCartAddAndReturnsCartContract() throws Exception {

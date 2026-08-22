@@ -24,7 +24,9 @@ public class CategoryController {
 	}
 	@PutMapping("/{id}") public CategoryResponse update(@PathVariable @Positive Long id, @Valid @RequestBody UpdateCategoryRequest r) { return service.update(id, r); }
 	@GetMapping("/{id}") public CategoryResponse get(@PathVariable @Positive Long id) { return service.getById(id); }
-	@GetMapping public List<CategoryResponse> list() { return service.getAll(); }
+	@GetMapping public List<CategoryResponse> list(@RequestParam(defaultValue = "false") boolean activeOnly) {
+		return activeOnly ? service.getActive() : service.getAll();
+	}
 	@PostMapping("/{id}/activate") public CategoryResponse activate(@PathVariable @Positive Long id) { return service.activate(id); }
 	@PostMapping("/{id}/deactivate") public CategoryResponse deactivate(@PathVariable @Positive Long id) { return service.deactivate(id); }
 }

@@ -313,6 +313,32 @@ class JpaPersistencePostgreSqlTest {
 	}
 
 	@Test
+	void publicCatalogQueriesExcludeInactiveResourcesAndKeepStableMetadata() {
+		Category accessories = categoryRepository.saveAndFlush(new Category("Accessories", null));
+		Category books = categoryRepository.saveAndFlush(new Category("Books", null));
+		Category legacy = new Category("Legacy", null);
+		legacy.deactivate();
+		categoryRepository.saveAndFlush(legacy);
+
+		assertThat(categoryRepository.findByActiveTrueOrderByNameAscIdAsc())
+				.extracting(Category::getName)
+				.containsExactly("Accessories", "Books");
+
+		productRepository.saveAndFlush(new Product(accessories, "PUBLIC-ACTIVE", "Public active", null,
+				new BigDecimal("10.00"), 1, null));
+		Product inactive = new Product(books, "PUBLIC-INACTIVE", "Public inactive", null,
+				new BigDecimal("10.00"), 1, null);
+		inactive.deactivate();
+		productRepository.saveAndFlush(inactive);
+
+		var page = productService.getActive(PageRequest.of(0, 1));
+
+		assertThat(page.content()).extracting(response -> response.sku()).containsExactly("PUBLIC-ACTIVE");
+		assertThat(page.totalElements()).isEqualTo(1);
+		assertThat(page.totalPages()).isEqualTo(1);
+	}
+
+	@Test
 	void serviceRollsBackPartialUpdateAndReportsDuplicateWithoutLeakingSql() {
 		var category = categoryService.create(new CreateCategoryRequest("Electronics", null));
 		var original = productService.create(productRequest(category.id(), "SKU-1", "Keyboard"));

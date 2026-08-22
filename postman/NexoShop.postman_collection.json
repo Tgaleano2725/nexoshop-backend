@@ -132,7 +132,7 @@
         },
         {
           "name": "Listar categorías",
-          "request": { "method": "GET", "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }], "url": "{{baseUrl}}/api/v1/categories", "description": "GET /categories; lista ordenada por nombre e id." },
+          "request": { "method": "GET", "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }], "url": "{{baseUrl}}/api/v1/categories", "description": "GET /categories; lista ordenada por nombre e id. Agrega ?activeOnly=true para el catálogo público; ausente o false conserva todas." },
           "event": [{ "listen": "test", "script": { "type": "text", "exec": ["pm.test('HTTP 200', function () { pm.response.to.have.status(200); });", "pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');", "pm.expect(pm.response.json()).to.be.an('array');"] } }]
         },
         {
@@ -173,7 +173,7 @@
         },
         {
           "name": "Listar productos",
-          "request": { "method": "GET", "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }], "url": { "raw": "{{baseUrl}}/api/v1/products?page={{page}}&size={{size}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products"], "query": [{ "key": "page", "value": "{{page}}", "disabled": false }, { "key": "size", "value": "{{size}}", "disabled": false }] }, "description": "GET /products?page&size; respuesta paginada." },
+          "request": { "method": "GET", "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }], "url": { "raw": "{{baseUrl}}/api/v1/products?page={{page}}&size={{size}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products"], "query": [{ "key": "page", "value": "{{page}}", "disabled": false }, { "key": "size", "value": "{{size}}", "disabled": false }] }, "description": "GET /products?page&size; agrega activeOnly=true para el catálogo público; ausente o false conserva todas las filas y la paginación." },
           "event": [{ "listen": "test", "script": { "type": "text", "exec": ["pm.test('HTTP 200', function () { pm.response.to.have.status(200); });", "pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');", "const body = pm.response.json();", "pm.expect(body.content).to.be.an('array'); pm.expect(body).to.have.property('totalPages');"] } }]
         },
         {

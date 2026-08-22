@@ -67,6 +67,13 @@ public class CategoryServiceImpl implements CategoryService {
 	}
 
 	@Override
+	public List<CategoryResponse> getActive() {
+		return categoryRepository.findByActiveTrueOrderByNameAscIdAsc().stream()
+				.map(categoryMapper::toResponse)
+				.toList();
+	}
+
+	@Override
 	@Transactional
 	public CategoryResponse activate(Long id) {
 		Category category = findCategory(id);

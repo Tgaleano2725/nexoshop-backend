@@ -153,11 +153,19 @@ class ProductServiceImplTest {
 
 	@Test
 	void listsOnlyActiveProductsThroughDedicatedRepositoryQuery() {
-		Pageable requested = PageRequest.of(0, 10);
+		Pageable requested = PageRequest.of(1, 2);
 		when(productRepository.findByActiveTrue(any(Pageable.class)))
-				.thenReturn(new PageImpl<>(List.of(product()), requested, 1));
+				.thenReturn(new PageImpl<>(List.of(product()), requested, 3));
 
-		assertThat(service.getActive(requested).content()).hasSize(1);
+		var response = service.getActive(requested);
+
+		assertThat(response.content()).hasSize(1);
+		assertThat(response.content()).allMatch(item -> item.active());
+		assertThat(response.totalElements()).isEqualTo(3);
+		assertThat(response.totalPages()).isEqualTo(2);
+		ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+		verify(productRepository).findByActiveTrue(captor.capture());
+		assertThat(captor.getValue().getSort().getOrderFor("id")).isNotNull();
 	}
 
 	@Test

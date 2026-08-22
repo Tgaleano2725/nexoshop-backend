@@ -114,8 +114,10 @@ paths:
     get:
       tags: [Categories]
       summary: Listar categorías
-      description: Devuelve categorías ordenadas por nombre e identificador.
+      description: Devuelve categorías ordenadas por nombre e identificador. activeOnly es opcional y filtra únicamente categorías activas cuando vale true.
       operationId: listCategories
+      parameters:
+        - $ref: '#/components/parameters/ActiveOnly'
       responses:
         '200':
           description: Lista de categorías.
@@ -258,9 +260,10 @@ paths:
     get:
       tags: [Products]
       summary: Listar productos
-      description: Devuelve una página estable de productos ordenada por id ascendente.
+      description: Devuelve una página estable de productos ordenada por id ascendente. activeOnly filtra productos activos y calcula la metadata sobre ese subconjunto.
       operationId: listProducts
       parameters:
+        - $ref: '#/components/parameters/ActiveOnly'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
@@ -913,6 +916,14 @@ components:
         format: int32
         minimum: 1
         default: 20
+    ActiveOnly:
+      name: activeOnly
+      in: query
+      required: false
+      description: Cuando es true, devuelve únicamente recursos activos. Ausente o false conserva el listado completo.
+      schema:
+        type: boolean
+        default: false
   responses:
     BadRequest:
       description: Solicitud inválida; puede ser VALIDATION_ERROR o MALFORMED_REQUEST.

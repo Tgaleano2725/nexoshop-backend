@@ -119,4 +119,18 @@ class CategoryServiceImplTest {
 		assertThat(service.getAll()).extracting(response -> response.name())
 				.containsExactly("Accessories", "Electronics");
 	}
+
+	@Test
+	void listsOnlyActiveCategoriesUsingRepositoryStableOrderAndMapping() {
+		when(categoryRepository.findByActiveTrueOrderByNameAscIdAsc())
+				.thenReturn(List.of(new Category("Accessories", null), new Category("Electronics", null)));
+
+		var response = service.getActive();
+
+		assertThat(response).extracting(category -> category.name())
+				.containsExactly("Accessories", "Electronics");
+		assertThat(response).allMatch(category -> category.active());
+		assertThatThrownBy(() -> response.clear()).isInstanceOf(UnsupportedOperationException.class);
+		verify(categoryRepository).findByActiveTrueOrderByNameAscIdAsc();
+	}
 }

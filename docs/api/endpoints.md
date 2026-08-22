@@ -30,7 +30,7 @@ Consulta una categoría por `id` positivo y devuelve `200 CategoryResponse`. Err
 
 ### `GET /api/v1/categories`
 
-Lista categorías ordenadas por nombre e identificador. No recibe parámetros y devuelve `200` con `CategoryResponse[]`. Errores: `500 INTERNAL_ERROR`.
+Lista categorías ordenadas por nombre e identificador. `activeOnly` es opcional y por defecto `false`: sin el parámetro o con `activeOnly=false` devuelve todas; con `activeOnly=true` devuelve únicamente las activas. Devuelve `200` con `CategoryResponse[]`. Errores: `500 INTERNAL_ERROR`.
 
 ### `POST /api/v1/categories/{id}/activate`
 
@@ -62,7 +62,7 @@ Consulta un producto por SKU. `sku` es un segmento de texto normalizado por el s
 
 ### `GET /api/v1/products?page=0&size=20`
 
-Lista todos los productos en una respuesta `PageResponse<ProductResponse>`, ordenada establemente por `id` ascendente. `page` es entero mayor o igual que 0 y `size` es entero positivo. Devuelve `200`. Errores: `400 VALIDATION_ERROR` o `MALFORMED_REQUEST` y `500`.
+Lista productos en una respuesta `PageResponse<ProductResponse>`, ordenada establemente por `id` ascendente. `page` es entero mayor o igual que 0 y `size` es entero positivo. `activeOnly` es opcional y por defecto `false`: sin el parámetro o con `activeOnly=false` devuelve todos; con `activeOnly=true` devuelve únicamente activos y la metadata se calcula sobre ese subconjunto. Devuelve `200`. Errores: `400 VALIDATION_ERROR` o `MALFORMED_REQUEST` y `500`.
 
 ### `POST /api/v1/products/{id}/activate`
 

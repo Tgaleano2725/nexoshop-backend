@@ -26,8 +26,10 @@ public class ProductController {
 	@PutMapping("/{id}") public ProductResponse update(@PathVariable @Positive Long id, @Valid @RequestBody UpdateProductRequest r) { return service.update(id, r); }
 	@GetMapping("/{id}") public ProductResponse get(@PathVariable @Positive Long id) { return service.getById(id); }
 	@GetMapping("/sku/{sku}") public ProductResponse getSku(@PathVariable String sku) { return service.getBySku(sku); }
-	@GetMapping public PageResponse<ProductResponse> list(@RequestParam(defaultValue="0") @Min(0) int page, @RequestParam(defaultValue="20") @Positive int size) {
-		return service.getAll(PageRequest.of(page, size, Sort.by("id").ascending()));
+	@GetMapping public PageResponse<ProductResponse> list(@RequestParam(defaultValue = "false") boolean activeOnly,
+			@RequestParam(defaultValue="0") @Min(0) int page, @RequestParam(defaultValue="20") @Positive int size) {
+		var pageable = PageRequest.of(page, size, Sort.by("id").ascending());
+		return activeOnly ? service.getActive(pageable) : service.getAll(pageable);
 	}
 	@PostMapping("/{id}/activate") public ProductResponse activate(@PathVariable @Positive Long id) { return service.activate(id); }
 	@PostMapping("/{id}/deactivate") public ProductResponse deactivate(@PathVariable @Positive Long id) { return service.deactivate(id); }
